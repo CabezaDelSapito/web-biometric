@@ -1,6 +1,0 @@
-@BiometricApi_HostAddress = http://localhost:5139
-
-GET {{BiometricApi_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
