@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Captura de Biometrias</title>
+    <!-- Inclua o script do Web SDK -->
+    <script type="text/javascript" src="https://unpkg.com/@digitalpersona/websdk@v1"></script>
+    <script type="text/javascript" src="https://unpkg.com/@digitalpersona/fingerprint@v1"></script>
+    <script>
+        function base64URLdecode(str) {
+            return str.replace(/-/g, '+').replace(/_/g, '/');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const reader = new Fingerprint.WebApi({
+                debug: true,
+            });
+            let biometria1 = null;
+            let biometria2 = null;
+
+            reader.on("SamplesAcquired", (event) => {
+                const samples = JSON.parse(event.samples);
+                console.log(samples);
+                if (!biometria1) {
+                    console.log('################################# original')
+                    console.log(samples[0])
+                    document.getElementById('status').textContent = 'Biometria 1 capturada. Por favor, capture a Biometria 2.';
+
+                    biometria1 = base64URLdecode(samples[0]);
+                } else if (!biometria2) {
+                    biometria2 = base64URLdecode(samples[0]);
+                    document.getElementById('status').textContent = 'Biometria 2 capturada.';
+                    fetch('http://localhost:8080/fingerprint/match/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            template1: biometria1,
+                            template2: biometria2
+                        })
+                    })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Erro na requisição');
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            console.log('Resposta da API:', data);
+                        })
+                        .catch(error => {
+                            console.error('Erro:', error);
+                        });
+
+                    // Aqui você pode enviar as amostras para o servidor para comparação
+                }
+            });
+
+            document.getElementById('iniciar').addEventListener('click', async () => {
+                try {
+                    // Raw, Intermediate, Compressed, PngImage
+                    await reader.startAcquisition(Fingerprint.SampleFormat.PngImage);
+                    document.getElementById('status').textContent = 'Aguardando captura de biometrias...';
+                } catch (error) {
+                    console.error('Erro ao iniciar a captura:', error);
+                    document.getElementById('status').textContent = 'Erro ao iniciar a captura.';
+                }
+            });
+
+            document.getElementById('parar').addEventListener('click', () => {
+                reader.stopAcquisition();
+                document.getElementById('status').textContent = 'Captura finalizada.';
+            });
+        });
+    </script>
+</head>
+
+<body>
+    <h1>Captura de Biometrias</h1>
+    <button id="iniciar">Iniciar Captura</button>
+    <button id="parar">Parar Captura</button>
+    <p id="status">Status: Aguardando ação do usuário.</p>
+    <img id="imagem" alt="Imagem Base64" style="max-width: 300px; border: 1px solid #ccc;" />
+</body>
+
+</html>
